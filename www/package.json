@@ -1,0 +1,26 @@
+{
+  "name": "pem-viewer-www",
+  "version": "0.1.0",
+  "description": "Parse and view PEM files in the browser",
+  "main": "index.js",
+  "scripts": {
+    "build": "export SET NODE_OPTIONS=--openssl-legacy-provider && webpack --config webpack.config.js",
+    "start": "export SET NODE_OPTIONS=--openssl-legacy-provider && webpack-dev-server"
+  },
+  "keywords": [
+    "pem",
+    "viewer",
+    "wasm"
+  ],
+  "author": "Joost Ole Seddig <mail@joostseddig.de>",
+  "homepage": "https://pem.joostseddig.de",
+  "dependencies": {
+    "pem-viewer": "file:../pkg"
+  },
+  "devDependencies": {
+    "webpack": "^4.29.3",
+    "webpack-cli": "^3.1.0",
+    "webpack-dev-server": "^3.1.5",
+    "copy-webpack-plugin": "^5.0.0"
+  }
+}
