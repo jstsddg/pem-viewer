@@ -1,0 +1,5 @@
+textarea {
+    width: min(calc(100% - 4em), 40em);
+    height: 40em;
+    margin: 1em 2em;
+}

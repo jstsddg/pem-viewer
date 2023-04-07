@@ -1,3 +1,10 @@
 import * as wasm from "pem-viewer";
 
-wasm.greet();
+function run() {
+    var input = document.getElementById("input");
+    wasm.parse(input.value);
+}
+
+run()
+
+window.run = run

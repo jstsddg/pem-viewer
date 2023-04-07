@@ -3,9 +3,19 @@
   <head>
     <meta charset="utf-8">
     <title>PEM Viewer</title>
+    <link rel="stylesheet" href="style.css">
   </head>
   <body>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
     <script src="./bootstrap.js"></script>
+    
+    <h1>PEM Viewer</h1>
+    <p>
+      Paste any PEM encoded certificate in the following textfield and parse all contained X509 certificates.
+      All calculations are done in the browser, the pasted data never leaves your computer.
+    </p>
+    
+    <textarea id="input" oninput="run()"></textarea>
+    <div id="render"></div>
   </body>
 </html>
