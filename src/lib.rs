@@ -74,7 +74,7 @@ fn parse_x509(contents: Vec<u8>) -> RenderElement {
                         content: RenderContent::Value(cert.raw_serial_as_string()),
                     },
                     RenderElement {
-                        header: "Sxtensions".to_string(),
+                        header: "Extensions".to_string(),
                         content: RenderContent::List(exts),
                     },
                 ]),
