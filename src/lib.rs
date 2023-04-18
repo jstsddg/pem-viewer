@@ -49,14 +49,7 @@ fn parse_x509(contents: Vec<u8>) -> RenderElement {
                 };
             }
 
-            let exts = cert
-                .extensions()
-                .into_iter()
-                .map(|ext| RenderElement {
-                    header: format!("Type {}", ext.oid.to_id_string()),
-                    content: RenderContent::Value(format!("{:?}", ext.parsed_extension())),
-                })
-                .collect();
+            let exts = cert.extensions().iter().map(parse_x509_extension).collect();
 
             RenderElement {
                 header: "X509".to_string(),
@@ -83,6 +76,102 @@ fn parse_x509(contents: Vec<u8>) -> RenderElement {
         Err(err) => RenderElement {
             header: "Parsing x509 failed".to_string(),
             content: RenderContent::Value(format!("{:?}", err)),
+        },
+    }
+}
+
+fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
+    match ext.parsed_extension() {
+        ParsedExtension::UnsupportedExtension { oid } => RenderElement {
+            header: "Unsupported extension".to_string(),
+            content: RenderContent::Value(format!("Oid {}", oid.to_id_string())),
+        },
+        ParsedExtension::ParseError { error } => RenderElement {
+            header: "Parse error".to_string(),
+            content: RenderContent::Value(format!("{}", error)),
+        },
+        ParsedExtension::AuthorityKeyIdentifier(aki) => RenderElement {
+            header: format!("Authority Key Identifier ({})", ext.oid.to_id_string()),
+            content: RenderContent::List(vec![
+                RenderElement {
+                    header: "Key Identifier".to_string(),
+                    content: RenderContent::Value(format!("{:?}", aki.key_identifier)),
+                },
+                RenderElement {
+                    header: "Authority Cert Issuer".to_string(),
+                    content: RenderContent::Value(format!("{:?}", aki.authority_cert_issuer)),
+                },
+                RenderElement {
+                    header: "Authority Cert Serial".to_string(),
+                    content: RenderContent::Value(format!("{:?}", aki.authority_cert_serial)),
+                },
+            ]),
+        },
+        ParsedExtension::SubjectKeyIdentifier(ski) => RenderElement {
+            header: format!("Subject Key Identifier ({})", ext.oid.to_id_string()),
+            content: RenderContent::Value(format!("{:?}", ski.0)),
+        },
+        ParsedExtension::KeyUsage(ku) => RenderElement {
+            header: format!("Key Usage ({})", ext.oid.to_id_string()),
+            content: RenderContent::List(vec![
+                RenderElement {
+                    header: "CRL Sign".to_string(),
+                    content: RenderContent::Value(ku.crl_sign().to_string()),
+                },
+                RenderElement {
+                    header: "Data Encipherment".to_string(),
+                    content: RenderContent::Value(ku.data_encipherment().to_string()),
+                },
+                RenderElement {
+                    header: "Decipher Only".to_string(),
+                    content: RenderContent::Value(ku.decipher_only().to_string()),
+                },
+                RenderElement {
+                    header: "Digital Signature".to_string(),
+                    content: RenderContent::Value(ku.digital_signature().to_string()),
+                },
+                RenderElement {
+                    header: "Encipher Only".to_string(),
+                    content: RenderContent::Value(ku.encipher_only().to_string()),
+                },
+                RenderElement {
+                    header: "Key Agreement".to_string(),
+                    content: RenderContent::Value(ku.key_agreement().to_string()),
+                },
+                RenderElement {
+                    header: "Key Cert Sign".to_string(),
+                    content: RenderContent::Value(ku.key_cert_sign().to_string()),
+                },
+                RenderElement {
+                    header: "Key Encipherment".to_string(),
+                    content: RenderContent::Value(ku.key_encipherment().to_string()),
+                },
+                RenderElement {
+                    header: "Non Repudiation".to_string(),
+                    content: RenderContent::Value(ku.non_repudiation().to_string()),
+                },
+            ]),
+        },
+        ParsedExtension::CertificatePolicies(_) |
+        ParsedExtension::PolicyMappings(_) |
+        ParsedExtension::SubjectAlternativeName(_) |
+        ParsedExtension::IssuerAlternativeName(_) |
+        ParsedExtension::BasicConstraints(_) |
+        ParsedExtension::NameConstraints(_) |
+        ParsedExtension::PolicyConstraints(_) |
+        ParsedExtension::ExtendedKeyUsage(_) |
+        ParsedExtension::CRLDistributionPoints(_) |
+        ParsedExtension::InhibitAnyPolicy(_) |
+        ParsedExtension::AuthorityInfoAccess(_) |
+        ParsedExtension::NSCertType(_) |
+        ParsedExtension::NsCertComment(_) |
+        ParsedExtension::CRLNumber(_) |
+        ParsedExtension::ReasonCode(_) |
+        ParsedExtension::InvalidityDate(_) |
+        ParsedExtension::SCT(_) |
+        ParsedExtension::Unparsed => RenderElement {
+            header: format!("Oid {}", ext.oid.to_id_string()),
+            content: RenderContent::Value(format!("{:?}", ext.parsed_extension())),
         },
     }
 }
@@ -141,7 +230,7 @@ fn render_element(document: &Document, element: RenderElement) -> Element {
             parent.append_child(&ul).expect("should append ul element");
 
             for boxx in content {
-                let li = render_element(&document, boxx);
+                let li = render_element(document, boxx);
                 ul.append_child(&li).expect("should append li element");
             }
         }
