@@ -1,0 +1,19 @@
+---
+name: CI
+
+on: push
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo install wasm-pack
+
+      - run: wasm-pack build
+
+      - run: npm ci
+        working-directory: www
+      - run: npm run build
+        working-directory: www
