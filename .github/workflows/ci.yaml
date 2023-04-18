@@ -21,9 +21,8 @@ jobs:
       - run: npm run build
         working-directory: www
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-pages-artifact@v1
         with:
-          name: dist
           path: www/dist
 
   deploy:
@@ -43,5 +42,3 @@ jobs:
     steps:
       - uses: actions/deploy-pages@v2
         id: deployment
-        with:
-          artifact_name: dist
