@@ -152,24 +152,79 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                 },
             ]),
         },
-        ParsedExtension::CertificatePolicies(_) |
-        ParsedExtension::PolicyMappings(_) |
-        ParsedExtension::SubjectAlternativeName(_) |
-        ParsedExtension::IssuerAlternativeName(_) |
-        ParsedExtension::BasicConstraints(_) |
-        ParsedExtension::NameConstraints(_) |
-        ParsedExtension::PolicyConstraints(_) |
-        ParsedExtension::ExtendedKeyUsage(_) |
-        ParsedExtension::CRLDistributionPoints(_) |
-        ParsedExtension::InhibitAnyPolicy(_) |
-        ParsedExtension::AuthorityInfoAccess(_) |
-        ParsedExtension::NSCertType(_) |
-        ParsedExtension::NsCertComment(_) |
-        ParsedExtension::CRLNumber(_) |
-        ParsedExtension::ReasonCode(_) |
-        ParsedExtension::InvalidityDate(_) |
-        ParsedExtension::SCT(_) |
-        ParsedExtension::Unparsed => RenderElement {
+        ParsedExtension::ExtendedKeyUsage(eku) => RenderElement {
+            header: format!("Extended Key Usage ({})", ext.oid.to_id_string()),
+            content: RenderContent::List(vec![
+                RenderElement {
+                    header: "Any".to_string(),
+                    content: RenderContent::Value(eku.any.to_string()),
+                },
+                RenderElement {
+                    header: "Server Auth".to_string(),
+                    content: RenderContent::Value(eku.server_auth.to_string()),
+                },
+                RenderElement {
+                    header: "Client Auth".to_string(),
+                    content: RenderContent::Value(eku.client_auth.to_string()),
+                },
+                RenderElement {
+                    header: "Code Signing".to_string(),
+                    content: RenderContent::Value(eku.code_signing.to_string()),
+                },
+                RenderElement {
+                    header: "E-Mail Protection".to_string(),
+                    content: RenderContent::Value(eku.email_protection.to_string()),
+                },
+                RenderElement {
+                    header: "Time Stamping".to_string(),
+                    content: RenderContent::Value(eku.time_stamping.to_string()),
+                },
+                RenderElement {
+                    header: "OCSP Signing".to_string(),
+                    content: RenderContent::Value(eku.ocsp_signing.to_string()),
+                },
+                RenderElement {
+                    header: "Other".to_string(),
+                    content: RenderContent::List(
+                        eku.other
+                            .iter()
+                            .map(|e| RenderElement {
+                                header: e.to_string(),
+                                content: RenderContent::Empty,
+                            })
+                            .collect(),
+                    ),
+                },
+            ]),
+        },
+        ParsedExtension::SubjectAlternativeName(san) => RenderElement {
+            header: format!("Subject Alternative Name ({})", ext.oid.to_id_string()),
+            content: RenderContent::List(
+                san.general_names
+                    .iter()
+                    .map(|general_name| RenderElement {
+                        header: general_name.to_string(),
+                        content: RenderContent::Empty,
+                    })
+                    .collect(),
+            ),
+        },
+        ParsedExtension::CertificatePolicies(_)
+        | ParsedExtension::PolicyMappings(_)
+        | ParsedExtension::IssuerAlternativeName(_)
+        | ParsedExtension::BasicConstraints(_)
+        | ParsedExtension::NameConstraints(_)
+        | ParsedExtension::PolicyConstraints(_)
+        | ParsedExtension::CRLDistributionPoints(_)
+        | ParsedExtension::InhibitAnyPolicy(_)
+        | ParsedExtension::AuthorityInfoAccess(_)
+        | ParsedExtension::NSCertType(_)
+        | ParsedExtension::NsCertComment(_)
+        | ParsedExtension::CRLNumber(_)
+        | ParsedExtension::ReasonCode(_)
+        | ParsedExtension::InvalidityDate(_)
+        | ParsedExtension::SCT(_)
+        | ParsedExtension::Unparsed => RenderElement {
             header: format!("Oid {}", ext.oid.to_id_string()),
             content: RenderContent::Value(format!("{:?}", ext.parsed_extension())),
         },
