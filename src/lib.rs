@@ -209,13 +209,37 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                     .collect(),
             ),
         },
+        ParsedExtension::CRLDistributionPoints(crl_dp) => RenderElement {
+            header: format!("CRL Distribution Points ({})", ext.oid.to_id_string()),
+            content: RenderContent::List(
+                crl_dp.points
+                    .iter()
+                    .map(|point| RenderElement {
+                        header: "Distribution Point".to_string(),
+                        content: RenderContent::List(vec![
+                            RenderElement {
+                                header: "Name".to_string(),
+                                content: RenderContent::Value(format!("{:?}", point.distribution_point)),
+                            },
+                            RenderElement {
+                                header: "Reasons".to_string(),
+                                content: RenderContent::Value(format!("{:?}", point.reasons)),
+                            },
+                            RenderElement {
+                                header: "CRL Issuer".to_string(),
+                                content: RenderContent::Value(format!("{:?}", point.crl_issuer)),
+                            },
+                        ])
+                    })
+                    .collect(),
+            ),
+        },
         ParsedExtension::CertificatePolicies(_)
         | ParsedExtension::PolicyMappings(_)
         | ParsedExtension::IssuerAlternativeName(_)
         | ParsedExtension::BasicConstraints(_)
         | ParsedExtension::NameConstraints(_)
         | ParsedExtension::PolicyConstraints(_)
-        | ParsedExtension::CRLDistributionPoints(_)
         | ParsedExtension::InhibitAnyPolicy(_)
         | ParsedExtension::AuthorityInfoAccess(_)
         | ParsedExtension::NSCertType(_)
