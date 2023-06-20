@@ -6,13 +6,20 @@
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
-    <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
+    <noscript>This page contains web assembly and javascript content, please enable javascript in your browser.</noscript>
     <script src="./bootstrap.js"></script>
     
     <h1>PEM Viewer</h1>
     <p>
-      Paste any PEM encoded certificate in the following textfield and parse all contained X509 certificates.
+      Paste any PEM encoded certificate in the following text field and parse all contained X509 certificates.
       All calculations are done in the browser, the pasted data never leaves your computer.
+    </p>
+    <p>
+      Useful commands:
+      <ul>
+        <li><code>openssl s_client -showcerts -connect www.example.com:443</code></li>
+        <li><code>keytool -import -cacerts -file certificate.pem</code></li>
+      </ul>
     </p>
     
     <textarea id="input" oninput="run()"></textarea>
