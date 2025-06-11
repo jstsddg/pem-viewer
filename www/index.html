@@ -19,6 +19,8 @@
       <ul>
         <li><code>openssl s_client -showcerts -connect www.example.com:443</code></li>
         <li><code>keytool -import -cacerts -file certificate.pem</code></li>
+        <li><code>openssl pkcs12 -in *.pfx -nocerts -out key.pem</code></li>
+        <li><code>openssl pkcs12 -in *.pfx -clcerts -nokeys -out cert.pem</code></li>
       </ul>
     </p>
     
