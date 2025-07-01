@@ -1,9 +1,7 @@
-mod utils;
-
 use rustls_pemfile::{read_all, Item};
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, Element};
-use x509_parser::prelude::*;
+use x509_parser::{nom::AsBytes, prelude::*};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -18,22 +16,21 @@ extern "C" {
 
 #[wasm_bindgen]
 pub fn parse(input: &str) {
-    let results = match read_all(&mut input.as_bytes()) {
-        Ok(vec) => vec
-            .into_iter()
-            .map(|pem| match pem {
-                Item::X509Certificate(contents) => parse_x509(contents),
+    let results = read_all(&mut input.as_bytes())
+        .map(|item| match item {
+            Ok(pem) => match pem {
+                Item::X509Certificate(contents) => parse_x509(contents.as_bytes().to_vec()),
                 _ => RenderElement {
                     header: "Unkown Type".to_string(),
                     content: RenderContent::Empty,
                 },
-            })
-            .collect(),
-        Err(err) => vec![RenderElement {
-            header: "Unkown Type".to_string(),
-            content: RenderContent::Value(format!("{:?}", err)),
-        }],
-    };
+            },
+            Err(err) => RenderElement {
+                header: "Unkown Type".to_string(),
+                content: RenderContent::Value(format!("{:?}", err)),
+            },
+        })
+        .collect();
 
     render(results);
 }
@@ -109,7 +106,14 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
         },
         ParsedExtension::SubjectKeyIdentifier(ski) => RenderElement {
             header: format!("Subject Key Identifier ({})", ext.oid.to_id_string()),
-            content: RenderContent::Value(format!("{:?}", ski.0)),
+            content: RenderContent::Value(format!(
+                "{}",
+                // Convert the bytes to a hex string with colon separated format
+                ski.0.iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<Vec<String>>()
+                    .join(":")
+            )),
         },
         ParsedExtension::KeyUsage(ku) => RenderElement {
             header: format!("Key Usage ({})", ext.oid.to_id_string()),
@@ -202,9 +206,50 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
             content: RenderContent::List(
                 san.general_names
                     .iter()
-                    .map(|general_name| RenderElement {
-                        header: general_name.to_string(),
-                        content: RenderContent::Empty,
+                    .map(|general_name| match general_name {
+                        GeneralName::OtherName(oid, items) => RenderElement {
+                            header: format!("Other Name ({})", oid.to_id_string()),
+                            content: RenderContent::Value(format!("{:?}", items)),
+                        },
+                        GeneralName::RFC822Name(name) => RenderElement {
+                            header: "RFC822 Name".to_string(),
+                            content: RenderContent::Value(name.to_string()),
+                        },
+                        GeneralName::DNSName(name) => RenderElement {
+                            header: "DNS Name".to_string(),
+                            content: RenderContent::Value(name.to_string()),
+                        },
+                        GeneralName::X400Address(any) => RenderElement {
+                            header: "X400 Address".to_string(),
+                            content: RenderContent::Value(format!("{:?}", any)),
+                        },
+                        GeneralName::DirectoryName(x509_name) => RenderElement {
+                            header: "Directory Name".to_string(),
+                            content: RenderContent::Value(x509_name.to_string()),
+                        },
+                        GeneralName::EDIPartyName(any) => RenderElement {
+                            header: "EDI Party Name".to_string(),
+                            content: RenderContent::Value(format!("{:?}", any)),
+                        },
+                        GeneralName::URI(uri) => RenderElement {
+                            header: "URI".to_string(),
+                            content: RenderContent::Value(uri.to_string()),
+                        },
+                        GeneralName::IPAddress(items) => RenderElement {
+                            header: "IP Address".to_string(),
+                            content: RenderContent::Value(format!(
+                                "{}",
+                                // Convert IP address bytes to a string with dot notation
+                                items.iter()
+                                    .map(|b| b.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join(".")
+                            )),
+                        },
+                        GeneralName::RegisteredID(oid) => RenderElement {
+                            header: "Registered ID".to_string(),
+                            content: RenderContent::Value(oid.to_id_string()),
+                        },
                     })
                     .collect(),
             ),
@@ -212,14 +257,18 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
         ParsedExtension::CRLDistributionPoints(crl_dp) => RenderElement {
             header: format!("CRL Distribution Points ({})", ext.oid.to_id_string()),
             content: RenderContent::List(
-                crl_dp.points
+                crl_dp
+                    .points
                     .iter()
                     .map(|point| RenderElement {
                         header: "Distribution Point".to_string(),
                         content: RenderContent::List(vec![
                             RenderElement {
                                 header: "Name".to_string(),
-                                content: RenderContent::Value(format!("{:?}", point.distribution_point)),
+                                content: RenderContent::Value(format!(
+                                    "{:?}",
+                                    point.distribution_point
+                                )),
                             },
                             RenderElement {
                                 header: "Reasons".to_string(),
@@ -229,7 +278,7 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                                 header: "CRL Issuer".to_string(),
                                 content: RenderContent::Value(format!("{:?}", point.crl_issuer)),
                             },
-                        ])
+                        ]),
                     })
                     .collect(),
             ),
@@ -248,6 +297,7 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
         | ParsedExtension::ReasonCode(_)
         | ParsedExtension::InvalidityDate(_)
         | ParsedExtension::SCT(_)
+        | ParsedExtension::IssuingDistributionPoint(_)
         | ParsedExtension::Unparsed => RenderElement {
             header: format!("Oid {}", ext.oid.to_id_string()),
             content: RenderContent::Value(format!("{:?}", ext.parsed_extension())),

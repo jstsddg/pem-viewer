@@ -23,8 +23,8 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 # compared to the default allocator's ~10K. It is slower than the default
 # allocator, however.
 wee_alloc = { version = "0.4.5", optional = true }
-rustls-pemfile = "1.0.2"
-x509-parser = "0.15.0"
+rustls-pemfile = "2.0.12"
+x509-parser = "0.17.0"
 
 [dependencies.web-sys]
 version = "0.3.4"
