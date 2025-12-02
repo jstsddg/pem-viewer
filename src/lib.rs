@@ -103,7 +103,8 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
             content: RenderContent::Value(format!(
                 "{}",
                 // Convert the bytes to a hex string with colon separated format
-                ski.0.iter()
+                ski.0
+                    .iter()
                     .map(|b| format!("{:02x}", b))
                     .collect::<Vec<String>>()
                     .join(":")
@@ -234,7 +235,8 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                             content: RenderContent::Value(format!(
                                 "{}",
                                 // Convert IP address bytes to a string with dot notation
-                                items.iter()
+                                items
+                                    .iter()
                                     .map(|b| b.to_string())
                                     .collect::<Vec<String>>()
                                     .join(".")
@@ -243,6 +245,10 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                         GeneralName::RegisteredID(oid) => RenderElement {
                             header: "Registered ID".to_string(),
                             content: RenderContent::Value(oid.to_id_string()),
+                        },
+                        GeneralName::Invalid(tag, items) => RenderElement {
+                            header: format!("Invalid General Name (tag {})", tag),
+                            content: RenderContent::Value(format!("{:?}", items)),
                         },
                     })
                     .collect(),
@@ -271,6 +277,33 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                             RenderElement {
                                 header: "CRL Issuer".to_string(),
                                 content: RenderContent::Value(format!("{:?}", point.crl_issuer)),
+                            },
+                        ]),
+                    })
+                    .collect(),
+            ),
+        },
+        ParsedExtension::SubjectInfoAccess(subject_info_access) => RenderElement {
+            header: format!("Subject Info Access ({})", ext.oid.to_id_string()),
+            content: RenderContent::List(
+                subject_info_access
+                    .accessdescs
+                    .iter()
+                    .map(|access_description| RenderElement {
+                        header: "Access Description".to_string(),
+                        content: RenderContent::List(vec![
+                            RenderElement {
+                                header: "Method".to_string(),
+                                content: RenderContent::Value(
+                                    access_description.access_method.to_id_string(),
+                                ),
+                            },
+                            RenderElement {
+                                header: "Location".to_string(),
+                                content: RenderContent::Value(format!(
+                                    "{:?}",
+                                    access_description.access_location
+                                )),
                             },
                         ]),
                     })
