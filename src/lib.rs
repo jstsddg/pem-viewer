@@ -98,16 +98,19 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                     }
                     .into(),
                 },
-                RenderElement {
-                    header: "Authority Cert Issuer".to_string(),
-                    content: match aki.authority_cert_issuer {
-                        Some(ref issuers) => issuers
+                match aki.authority_cert_issuer {
+                    Some(ref issuers) => RenderElement {
+                        header: "Authority Cert Issuer".to_string(),
+                        content: issuers
                             .iter()
                             .map(|general_name| format_general_name(general_name))
-                            .collect::<Vec<RenderElement>>(),
-                        None => vec![],
-                    }
-                    .into(),
+                            .collect::<Vec<RenderElement>>()
+                            .into(),
+                    },
+                    None => RenderElement {
+                        header: "Authority Cert Issuer".to_string(),
+                        content: "None".into(),
+                    },
                 },
                 RenderElement {
                     header: "Authority Cert Serial".to_string(),
