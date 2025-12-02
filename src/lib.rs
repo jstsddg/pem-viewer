@@ -1,3 +1,5 @@
+use std::vec;
+
 use rustls_pemfile::{read_all, Item};
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, Element};
@@ -90,15 +92,30 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
             content: vec![
                 RenderElement {
                     header: "Key Identifier".to_string(),
-                    content: format!("{:?}", aki.key_identifier).into(),
+                    content: match aki.key_identifier {
+                        Some(ref id) => format_key_identifier(&id.0),
+                        None => "None".to_string(),
+                    }
+                    .into(),
                 },
                 RenderElement {
                     header: "Authority Cert Issuer".to_string(),
-                    content: format!("{:?}", aki.authority_cert_issuer).into(),
+                    content: match aki.authority_cert_issuer {
+                        Some(ref issuers) => issuers
+                            .iter()
+                            .map(|general_name| format_general_name(general_name))
+                            .collect::<Vec<RenderElement>>(),
+                        None => vec![],
+                    }
+                    .into(),
                 },
                 RenderElement {
                     header: "Authority Cert Serial".to_string(),
-                    content: format!("{:?}", aki.authority_cert_serial).into(),
+                    content: match aki.authority_cert_serial {
+                        Some(ref serial) => format_key_identifier(serial),
+                        None => "None".to_string(),
+                    }
+                    .into(),
                 },
             ]
             .into(),
@@ -208,57 +225,7 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
             content: san
                 .general_names
                 .iter()
-                .map(|general_name| match general_name {
-                    GeneralName::OtherName(oid, items) => RenderElement {
-                        header: format!("Other Name ({})", oid.to_id_string()),
-                        content: format!("{:?}", items).into(),
-                    },
-                    GeneralName::RFC822Name(name) => RenderElement {
-                        header: "RFC822 Name".to_string(),
-                        content: name.to_string().into(),
-                    },
-                    GeneralName::DNSName(name) => RenderElement {
-                        header: "DNS Name".to_string(),
-                        content: name.to_string().into(),
-                    },
-                    GeneralName::X400Address(any) => RenderElement {
-                        header: "X400 Address".to_string(),
-                        content: format!("{:?}", any).into(),
-                    },
-                    GeneralName::DirectoryName(x509_name) => RenderElement {
-                        header: "Directory Name".to_string(),
-                        content: x509_name.to_string().into(),
-                    },
-                    GeneralName::EDIPartyName(any) => RenderElement {
-                        header: "EDI Party Name".to_string(),
-                        content: format!("{:?}", any).into(),
-                    },
-                    GeneralName::URI(uri) => RenderElement {
-                        header: "URI".to_string(),
-                        content: uri.to_string().into(),
-                    },
-                    GeneralName::IPAddress(items) => RenderElement {
-                        header: "IP Address".to_string(),
-                        content: format!(
-                            "{}",
-                            // Convert IP address bytes to a string with dot notation
-                            items
-                                .iter()
-                                .map(|b| b.to_string())
-                                .collect::<Vec<String>>()
-                                .join(".")
-                        )
-                        .into(),
-                    },
-                    GeneralName::RegisteredID(oid) => RenderElement {
-                        header: "Registered ID".to_string(),
-                        content: oid.to_id_string().into(),
-                    },
-                    GeneralName::Invalid(tag, items) => RenderElement {
-                        header: format!("Invalid General Name (tag {})", tag),
-                        content: format!("{:?}", items).into(),
-                    },
-                })
+                .map(|general_name| format_general_name(general_name))
                 .collect::<Vec<_>>()
                 .into(),
         },
@@ -310,10 +277,27 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                 .collect::<Vec<_>>()
                 .into(),
         },
+        ParsedExtension::BasicConstraints(basic_constraints) => RenderElement {
+            header: format!("Basic Constraints ({})", ext.oid.to_id_string()),
+            content: vec![
+                RenderElement {
+                    header: "CA".to_string(),
+                    content: basic_constraints.ca.into(),
+                },
+                RenderElement {
+                    header: "Path Length Constraint".to_string(),
+                    content: match basic_constraints.path_len_constraint {
+                        Some(len) => len.to_string(),
+                        None => "None".to_string(),
+                    }
+                    .into(),
+                },
+            ]
+            .into(),
+        },
         ParsedExtension::CertificatePolicies(_)
         | ParsedExtension::PolicyMappings(_)
         | ParsedExtension::IssuerAlternativeName(_)
-        | ParsedExtension::BasicConstraints(_)
         | ParsedExtension::NameConstraints(_)
         | ParsedExtension::PolicyConstraints(_)
         | ParsedExtension::InhibitAnyPolicy(_)
@@ -370,6 +354,67 @@ impl Into<RenderContent> for &dyn ToString {
 impl Into<RenderContent> for Vec<RenderElement> {
     fn into(self) -> RenderContent {
         RenderContent::List(self)
+    }
+}
+
+fn format_key_identifier(id: &[u8]) -> String {
+    id.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<String>>()
+        .join(":")
+}
+
+fn format_general_name(general_name: &GeneralName) -> RenderElement {
+    match general_name {
+        GeneralName::OtherName(oid, items) => RenderElement {
+            header: format!("Other Name ({})", oid.to_id_string()),
+            content: format!("{:?}", items).into(),
+        },
+        GeneralName::RFC822Name(name) => RenderElement {
+            header: "RFC822 Name".to_string(),
+            content: name.to_string().into(),
+        },
+        GeneralName::DNSName(name) => RenderElement {
+            header: "DNS Name".to_string(),
+            content: name.to_string().into(),
+        },
+        GeneralName::X400Address(any) => RenderElement {
+            header: "X400 Address".to_string(),
+            content: format!("{:?}", any).into(),
+        },
+        GeneralName::DirectoryName(x509_name) => RenderElement {
+            header: "Directory Name".to_string(),
+            content: x509_name.to_string().into(),
+        },
+        GeneralName::EDIPartyName(any) => RenderElement {
+            header: "EDI Party Name".to_string(),
+            content: format!("{:?}", any).into(),
+        },
+        GeneralName::URI(uri) => RenderElement {
+            header: "URI".to_string(),
+            content: uri.to_string().into(),
+        },
+        GeneralName::IPAddress(items) => RenderElement {
+            header: "IP Address".to_string(),
+            content: format!(
+                "{}",
+                // Convert IP address bytes to a string with dot notation
+                items
+                    .iter()
+                    .map(|b| b.to_string())
+                    .collect::<Vec<String>>()
+                    .join(".")
+            )
+            .into(),
+        },
+        GeneralName::RegisteredID(oid) => RenderElement {
+            header: "Registered ID".to_string(),
+            content: oid.to_id_string().into(),
+        },
+        GeneralName::Invalid(tag, items) => RenderElement {
+            header: format!("Invalid General Name (tag {})", tag),
+            content: format!("{:?}", items).into(),
+        },
     }
 }
 
