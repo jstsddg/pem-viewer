@@ -19,12 +19,13 @@ jobs:
         with:
           crate: wasm-pack
           version: '^0.13'
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+        with:
+          version: latest
 
       - run: wasm-pack build
 
-      - run: npm ci
-        working-directory: www
-      - run: npm run build
+      - run: pnpm run build
         working-directory: www
 
       - uses: actions/upload-pages-artifact@v4
