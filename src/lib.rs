@@ -14,6 +14,10 @@ pub fn parse(input: &str) {
         .map(|item| match item {
             Ok(pem) => match pem {
                 Item::X509Certificate(contents) => parse_x509(contents.as_bytes().to_vec()),
+                Item::Pkcs1Key(_) | Item::Pkcs8Key(_) | Item::Sec1Key(_) => RenderElement {
+                    header: "Private Key".to_string(),
+                    content: "Please do not share private keys.".into(),
+                },
                 _ => RenderElement {
                     header: "Unkown Type".to_string(),
                     content: RenderContent::Empty,
@@ -21,7 +25,7 @@ pub fn parse(input: &str) {
             },
             Err(err) => RenderElement {
                 header: "Unkown Type".to_string(),
-                content: RenderContent::Value(format!("{:?}", err)),
+                content: format!("{:?}", err).into(),
             },
         })
         .collect();
@@ -36,37 +40,37 @@ fn parse_x509(contents: Vec<u8>) -> RenderElement {
             if !rem.is_empty() {
                 return RenderElement {
                     header: "Parsing x509 failed".to_string(),
-                    content: RenderContent::Value(format!("{} bytes left over", rem.len())),
+                    content: format!("{} bytes left over", rem.len()).into(),
                 };
             }
 
-            let exts = cert.extensions().iter().map(parse_x509_extension).collect();
+            let exts: Vec<_> = cert.extensions().iter().map(parse_x509_extension).collect();
 
             RenderElement {
                 header: "X509".to_string(),
                 content: RenderContent::List(vec![
                     RenderElement {
                         header: "Subject".to_string(),
-                        content: RenderContent::Value(cert.subject().to_string()),
+                        content: cert.subject().to_string().into(),
                     },
                     RenderElement {
                         header: "Issuer".to_string(),
-                        content: RenderContent::Value(cert.issuer().to_string()),
+                        content: cert.issuer().to_string().into(),
                     },
                     RenderElement {
                         header: "Serial".to_string(),
-                        content: RenderContent::Value(cert.raw_serial_as_string()),
+                        content: cert.raw_serial_as_string().into(),
                     },
                     RenderElement {
                         header: "Extensions".to_string(),
-                        content: RenderContent::List(exts),
+                        content: exts.into(),
                     },
                 ]),
             }
         }
         Err(err) => RenderElement {
             header: "Parsing x509 failed".to_string(),
-            content: RenderContent::Value(format!("{:?}", err)),
+            content: format!("{:?}", err).into(),
         },
     }
 }
@@ -75,32 +79,33 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
     match ext.parsed_extension() {
         ParsedExtension::UnsupportedExtension { oid } => RenderElement {
             header: "Unsupported extension".to_string(),
-            content: RenderContent::Value(format!("Oid {}", oid.to_id_string())),
+            content: format!("Oid {}", oid.to_id_string()).into(),
         },
         ParsedExtension::ParseError { error } => RenderElement {
             header: "Parse error".to_string(),
-            content: RenderContent::Value(format!("{}", error)),
+            content: format!("{}", error).into(),
         },
         ParsedExtension::AuthorityKeyIdentifier(aki) => RenderElement {
             header: format!("Authority Key Identifier ({})", ext.oid.to_id_string()),
-            content: RenderContent::List(vec![
+            content: vec![
                 RenderElement {
                     header: "Key Identifier".to_string(),
-                    content: RenderContent::Value(format!("{:?}", aki.key_identifier)),
+                    content: format!("{:?}", aki.key_identifier).into(),
                 },
                 RenderElement {
                     header: "Authority Cert Issuer".to_string(),
-                    content: RenderContent::Value(format!("{:?}", aki.authority_cert_issuer)),
+                    content: format!("{:?}", aki.authority_cert_issuer).into(),
                 },
                 RenderElement {
                     header: "Authority Cert Serial".to_string(),
-                    content: RenderContent::Value(format!("{:?}", aki.authority_cert_serial)),
+                    content: format!("{:?}", aki.authority_cert_serial).into(),
                 },
-            ]),
+            ]
+            .into(),
         },
         ParsedExtension::SubjectKeyIdentifier(ski) => RenderElement {
             header: format!("Subject Key Identifier ({})", ext.oid.to_id_string()),
-            content: RenderContent::Value(format!(
+            content: format!(
                 "{}",
                 // Convert the bytes to a hex string with colon separated format
                 ski.0
@@ -108,207 +113,202 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
                     .map(|b| format!("{:02x}", b))
                     .collect::<Vec<String>>()
                     .join(":")
-            )),
+            )
+            .into(),
         },
         ParsedExtension::KeyUsage(ku) => RenderElement {
             header: format!("Key Usage ({})", ext.oid.to_id_string()),
             content: RenderContent::List(vec![
                 RenderElement {
                     header: "CRL Sign".to_string(),
-                    content: RenderContent::Value(ku.crl_sign().to_string()),
+                    content: ku.crl_sign().into(),
                 },
                 RenderElement {
                     header: "Data Encipherment".to_string(),
-                    content: RenderContent::Value(ku.data_encipherment().to_string()),
+                    content: ku.data_encipherment().into(),
                 },
                 RenderElement {
                     header: "Decipher Only".to_string(),
-                    content: RenderContent::Value(ku.decipher_only().to_string()),
+                    content: ku.decipher_only().into(),
                 },
                 RenderElement {
                     header: "Digital Signature".to_string(),
-                    content: RenderContent::Value(ku.digital_signature().to_string()),
+                    content: ku.digital_signature().into(),
                 },
                 RenderElement {
                     header: "Encipher Only".to_string(),
-                    content: RenderContent::Value(ku.encipher_only().to_string()),
+                    content: ku.encipher_only().into(),
                 },
                 RenderElement {
                     header: "Key Agreement".to_string(),
-                    content: RenderContent::Value(ku.key_agreement().to_string()),
+                    content: ku.key_agreement().into(),
                 },
                 RenderElement {
                     header: "Key Cert Sign".to_string(),
-                    content: RenderContent::Value(ku.key_cert_sign().to_string()),
+                    content: ku.key_cert_sign().into(),
                 },
                 RenderElement {
                     header: "Key Encipherment".to_string(),
-                    content: RenderContent::Value(ku.key_encipherment().to_string()),
+                    content: ku.key_encipherment().into(),
                 },
                 RenderElement {
                     header: "Non Repudiation".to_string(),
-                    content: RenderContent::Value(ku.non_repudiation().to_string()),
+                    content: ku.non_repudiation().into(),
                 },
             ]),
         },
         ParsedExtension::ExtendedKeyUsage(eku) => RenderElement {
             header: format!("Extended Key Usage ({})", ext.oid.to_id_string()),
-            content: RenderContent::List(vec![
+            content: vec![
                 RenderElement {
                     header: "Any".to_string(),
-                    content: RenderContent::Value(eku.any.to_string()),
+                    content: eku.any.into(),
                 },
                 RenderElement {
                     header: "Server Auth".to_string(),
-                    content: RenderContent::Value(eku.server_auth.to_string()),
+                    content: eku.server_auth.into(),
                 },
                 RenderElement {
                     header: "Client Auth".to_string(),
-                    content: RenderContent::Value(eku.client_auth.to_string()),
+                    content: eku.client_auth.into(),
                 },
                 RenderElement {
                     header: "Code Signing".to_string(),
-                    content: RenderContent::Value(eku.code_signing.to_string()),
+                    content: eku.code_signing.into(),
                 },
                 RenderElement {
                     header: "E-Mail Protection".to_string(),
-                    content: RenderContent::Value(eku.email_protection.to_string()),
+                    content: eku.email_protection.into(),
                 },
                 RenderElement {
                     header: "Time Stamping".to_string(),
-                    content: RenderContent::Value(eku.time_stamping.to_string()),
+                    content: eku.time_stamping.into(),
                 },
                 RenderElement {
                     header: "OCSP Signing".to_string(),
-                    content: RenderContent::Value(eku.ocsp_signing.to_string()),
+                    content: eku.ocsp_signing.into(),
                 },
                 RenderElement {
                     header: "Other".to_string(),
-                    content: RenderContent::List(
-                        eku.other
-                            .iter()
-                            .map(|e| RenderElement {
-                                header: e.to_string(),
-                                content: RenderContent::Empty,
-                            })
-                            .collect(),
-                    ),
+                    content: eku
+                        .other
+                        .iter()
+                        .map(|e| RenderElement {
+                            header: e.to_string(),
+                            content: RenderContent::Empty,
+                        })
+                        .collect::<Vec<_>>()
+                        .into(),
                 },
-            ]),
+            ]
+            .into(),
         },
         ParsedExtension::SubjectAlternativeName(san) => RenderElement {
             header: format!("Subject Alternative Name ({})", ext.oid.to_id_string()),
-            content: RenderContent::List(
-                san.general_names
-                    .iter()
-                    .map(|general_name| match general_name {
-                        GeneralName::OtherName(oid, items) => RenderElement {
-                            header: format!("Other Name ({})", oid.to_id_string()),
-                            content: RenderContent::Value(format!("{:?}", items)),
-                        },
-                        GeneralName::RFC822Name(name) => RenderElement {
-                            header: "RFC822 Name".to_string(),
-                            content: RenderContent::Value(name.to_string()),
-                        },
-                        GeneralName::DNSName(name) => RenderElement {
-                            header: "DNS Name".to_string(),
-                            content: RenderContent::Value(name.to_string()),
-                        },
-                        GeneralName::X400Address(any) => RenderElement {
-                            header: "X400 Address".to_string(),
-                            content: RenderContent::Value(format!("{:?}", any)),
-                        },
-                        GeneralName::DirectoryName(x509_name) => RenderElement {
-                            header: "Directory Name".to_string(),
-                            content: RenderContent::Value(x509_name.to_string()),
-                        },
-                        GeneralName::EDIPartyName(any) => RenderElement {
-                            header: "EDI Party Name".to_string(),
-                            content: RenderContent::Value(format!("{:?}", any)),
-                        },
-                        GeneralName::URI(uri) => RenderElement {
-                            header: "URI".to_string(),
-                            content: RenderContent::Value(uri.to_string()),
-                        },
-                        GeneralName::IPAddress(items) => RenderElement {
-                            header: "IP Address".to_string(),
-                            content: RenderContent::Value(format!(
-                                "{}",
-                                // Convert IP address bytes to a string with dot notation
-                                items
-                                    .iter()
-                                    .map(|b| b.to_string())
-                                    .collect::<Vec<String>>()
-                                    .join(".")
-                            )),
-                        },
-                        GeneralName::RegisteredID(oid) => RenderElement {
-                            header: "Registered ID".to_string(),
-                            content: RenderContent::Value(oid.to_id_string()),
-                        },
-                        GeneralName::Invalid(tag, items) => RenderElement {
-                            header: format!("Invalid General Name (tag {})", tag),
-                            content: RenderContent::Value(format!("{:?}", items)),
-                        },
-                    })
-                    .collect(),
-            ),
+            content: san
+                .general_names
+                .iter()
+                .map(|general_name| match general_name {
+                    GeneralName::OtherName(oid, items) => RenderElement {
+                        header: format!("Other Name ({})", oid.to_id_string()),
+                        content: format!("{:?}", items).into(),
+                    },
+                    GeneralName::RFC822Name(name) => RenderElement {
+                        header: "RFC822 Name".to_string(),
+                        content: name.to_string().into(),
+                    },
+                    GeneralName::DNSName(name) => RenderElement {
+                        header: "DNS Name".to_string(),
+                        content: name.to_string().into(),
+                    },
+                    GeneralName::X400Address(any) => RenderElement {
+                        header: "X400 Address".to_string(),
+                        content: format!("{:?}", any).into(),
+                    },
+                    GeneralName::DirectoryName(x509_name) => RenderElement {
+                        header: "Directory Name".to_string(),
+                        content: x509_name.to_string().into(),
+                    },
+                    GeneralName::EDIPartyName(any) => RenderElement {
+                        header: "EDI Party Name".to_string(),
+                        content: format!("{:?}", any).into(),
+                    },
+                    GeneralName::URI(uri) => RenderElement {
+                        header: "URI".to_string(),
+                        content: uri.to_string().into(),
+                    },
+                    GeneralName::IPAddress(items) => RenderElement {
+                        header: "IP Address".to_string(),
+                        content: format!(
+                            "{}",
+                            // Convert IP address bytes to a string with dot notation
+                            items
+                                .iter()
+                                .map(|b| b.to_string())
+                                .collect::<Vec<String>>()
+                                .join(".")
+                        )
+                        .into(),
+                    },
+                    GeneralName::RegisteredID(oid) => RenderElement {
+                        header: "Registered ID".to_string(),
+                        content: oid.to_id_string().into(),
+                    },
+                    GeneralName::Invalid(tag, items) => RenderElement {
+                        header: format!("Invalid General Name (tag {})", tag),
+                        content: format!("{:?}", items).into(),
+                    },
+                })
+                .collect::<Vec<_>>()
+                .into(),
         },
         ParsedExtension::CRLDistributionPoints(crl_dp) => RenderElement {
             header: format!("CRL Distribution Points ({})", ext.oid.to_id_string()),
-            content: RenderContent::List(
-                crl_dp
-                    .points
-                    .iter()
-                    .map(|point| RenderElement {
-                        header: "Distribution Point".to_string(),
-                        content: RenderContent::List(vec![
-                            RenderElement {
-                                header: "Name".to_string(),
-                                content: RenderContent::Value(format!(
-                                    "{:?}",
-                                    point.distribution_point
-                                )),
-                            },
-                            RenderElement {
-                                header: "Reasons".to_string(),
-                                content: RenderContent::Value(format!("{:?}", point.reasons)),
-                            },
-                            RenderElement {
-                                header: "CRL Issuer".to_string(),
-                                content: RenderContent::Value(format!("{:?}", point.crl_issuer)),
-                            },
-                        ]),
-                    })
-                    .collect(),
-            ),
+            content: crl_dp
+                .points
+                .iter()
+                .map(|point| RenderElement {
+                    header: "Distribution Point".to_string(),
+                    content: vec![
+                        RenderElement {
+                            header: "Name".to_string(),
+                            content: format!("{:?}", point.distribution_point).into(),
+                        },
+                        RenderElement {
+                            header: "Reasons".to_string(),
+                            content: format!("{:?}", point.reasons).into(),
+                        },
+                        RenderElement {
+                            header: "CRL Issuer".to_string(),
+                            content: format!("{:?}", point.crl_issuer).into(),
+                        },
+                    ]
+                    .into(),
+                })
+                .collect::<Vec<_>>()
+                .into(),
         },
         ParsedExtension::SubjectInfoAccess(subject_info_access) => RenderElement {
             header: format!("Subject Info Access ({})", ext.oid.to_id_string()),
-            content: RenderContent::List(
-                subject_info_access
-                    .accessdescs
-                    .iter()
-                    .map(|access_description| RenderElement {
-                        header: "Access Description".to_string(),
-                        content: RenderContent::List(vec![
-                            RenderElement {
-                                header: "Method".to_string(),
-                                content: RenderContent::Value(
-                                    access_description.access_method.to_id_string(),
-                                ),
-                            },
-                            RenderElement {
-                                header: "Location".to_string(),
-                                content: RenderContent::Value(format!(
-                                    "{:?}",
-                                    access_description.access_location
-                                )),
-                            },
-                        ]),
-                    })
-                    .collect(),
-            ),
+            content: subject_info_access
+                .accessdescs
+                .iter()
+                .map(|access_description| RenderElement {
+                    header: "Access Description".to_string(),
+                    content: vec![
+                        RenderElement {
+                            header: "Method".to_string(),
+                            content: access_description.access_method.to_id_string().into(),
+                        },
+                        RenderElement {
+                            header: "Location".to_string(),
+                            content: format!("{:?}", access_description.access_location).into(),
+                        },
+                    ]
+                    .into(),
+                })
+                .collect::<Vec<_>>()
+                .into(),
         },
         ParsedExtension::CertificatePolicies(_)
         | ParsedExtension::PolicyMappings(_)
@@ -327,7 +327,7 @@ fn parse_x509_extension(ext: &X509Extension) -> RenderElement {
         | ParsedExtension::IssuingDistributionPoint(_)
         | ParsedExtension::Unparsed => RenderElement {
             header: format!("Oid {}", ext.oid.to_id_string()),
-            content: RenderContent::Value(format!("{:?}", ext.parsed_extension())),
+            content: format!("{:?}", ext.parsed_extension()).into(),
         },
     }
 }
@@ -341,6 +341,36 @@ enum RenderContent {
     Empty,
     Value(String),
     List(Vec<RenderElement>),
+}
+
+impl Into<RenderContent> for String {
+    fn into(self) -> RenderContent {
+        RenderContent::Value(self)
+    }
+}
+
+impl Into<RenderContent> for &str {
+    fn into(self) -> RenderContent {
+        RenderContent::Value(self.to_string())
+    }
+}
+
+impl Into<RenderContent> for bool {
+    fn into(self) -> RenderContent {
+        RenderContent::Value(self.to_string())
+    }
+}
+
+impl Into<RenderContent> for &dyn ToString {
+    fn into(self) -> RenderContent {
+        RenderContent::Value(self.to_string())
+    }
+}
+
+impl Into<RenderContent> for Vec<RenderElement> {
+    fn into(self) -> RenderContent {
+        RenderContent::List(self)
+    }
 }
 
 fn render(elements: Vec<RenderElement>) {
