@@ -2,10 +2,12 @@
   "name": "pem-viewer-www",
   "version": "0.1.0",
   "description": "Parse and view PEM files in the browser",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "export SET NODE_OPTIONS=--openssl-legacy-provider && webpack --config webpack.config.js",
-    "start": "export SET NODE_OPTIONS=--openssl-legacy-provider && webpack-dev-server"
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "keywords": [
     "pem",
@@ -18,9 +20,7 @@
     "pem-viewer": "file:../pkg"
   },
   "devDependencies": {
-    "copy-webpack-plugin": "^13.0.1",
-    "webpack": "^5.105.4",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.3"
+    "vite": "^8.0.0",
+    "vite-plugin-wasm": "^3.5.0"
   }
 }
