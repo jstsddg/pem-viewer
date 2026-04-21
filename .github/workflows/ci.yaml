@@ -30,7 +30,7 @@ jobs:
       - run: pnpm run build
         working-directory: www
 
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: www/dist
 
